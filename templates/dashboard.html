@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Security Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            background: #0a0f1e;
+            color: #cdd9f0;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ---- TOPBAR ---- */
+        .topbar {
+            background: #0d1530;
+            border-bottom: 1px solid #1e2d50;
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .topbar h4 { color: #e8f0fe; margin: 0; font-weight: 700; }
+        .topbar small { color: #5b7ab5; }
+        .btn-logout {
+            background: #c0392b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 7px 20px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .btn-logout:hover { background: #a93226; color: white; }
+        .user-badge {
+            background: #1e2d50;
+            border: 1px solid #2e4070;
+            border-radius: 20px;
+            padding: 5px 14px;
+            font-size: 13px;
+            color: #a0b4d6;
+            margin-right: 12px;
+        }
+
+        /* ---- MAIN ---- */
+        .main { padding: 28px; }
+
+        /* ---- STAT CARDS ---- */
+        .stat-card {
+            border-radius: 14px;
+            padding: 22px 26px;
+            border: 1px solid;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -30px; right: -30px;
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            opacity: 0.08;
+            background: white;
+        }
+        .stat-card h5 { font-size: 13px; font-weight: 500; margin-bottom: 10px; opacity: 0.85; }
+        .stat-card h2 { font-size: 40px; font-weight: 800; margin: 0; }
+
+        .stat-blue {
+            background: linear-gradient(135deg, #1a3a6e, #1e4d8c);
+            border-color: #2a5298;
+            color: #cfe2ff;
+        }
+        .stat-amber {
+            background: linear-gradient(135deg, #7a4f00, #a06800);
+            border-color: #c47f00;
+            color: #ffe8a1;
+        }
+        .stat-red {
+            background: linear-gradient(135deg, #6e1a1a, #8c1e1e);
+            border-color: #982929;
+            color: #ffd0d0;
+        }
+
+        /* ---- SECTION CARDS ---- */
+        .section-card {
+            background: #0d1530;
+            border-radius: 14px;
+            border: 1px solid #1e2d50;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+        .section-header {
+            padding: 14px 22px;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 1px solid #1e2d50;
+            background: #0a1020;
+            color: #a0b8e0;
+            letter-spacing: 0.3px;
+        }
+
+        /* ---- TABLE ---- */
+        .table { color: #cdd9f0; margin: 0; }
+        .table thead th {
+            background: #0a1020;
+            color: #5b7ab5;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-color: #1e2d50;
+            padding: 12px 18px;
+        }
+        .table td {
+            border-color: #1a2540;
+            font-size: 14px;
+            vertical-align: middle;
+            padding: 12px 18px;
+        }
+        .table tbody tr:hover { background: rgba(30, 60, 100, 0.3); }
+
+        /* ---- BADGES ---- */
+        .badge-low { background: rgba(22, 160, 80, 0.2); color: #4caf7d; border: 1px solid rgba(22,160,80,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; }
+        .badge-medium { background: rgba(255, 180, 0, 0.15); color: #ffc107; border: 1px solid rgba(255,180,0,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; }
+        .badge-high { background: rgba(220, 53, 69, 0.2); color: #f87171; border: 1px solid rgba(220,53,69,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; }
+
+        /* ---- CHART ---- */
+        .chart-container { position: relative; height: 230px; padding: 16px; }
+    </style>
+</head>
+
+<body>
+
+    <!-- Topbar -->
+    <div class="topbar">
+        <div>
+            <h4>🔐 Zero Trust Security Dashboard</h4>
+            <small>AI-Powered Access Control System</small>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="user-badge">👤 {{ user }} · {{ role }}</span>
+            <a href="/logout" class="btn-logout">Logout</a>
+        </div>
+    </div>
+
+    <div class="main">
+
+        <!-- Stat Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card stat-blue">
+                    <h5>📊 Total Login Attempts</h5>
+                    <h2>{{ total_logins }}</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card stat-amber">
+                    <h5>⚠️ Total Failed Attempts</h5>
+                    <h2>{{ total_failures }}</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card stat-red">
+                    <h5>🚫 Active IP Blocks</h5>
+                    <h2>{{ active_ip_blocks }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="section-card h-100">
+                    <div class="section-header">🎯 Risk Level Distribution</div>
+                    <div class="chart-container">
+                        <canvas id="riskChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="section-card h-100">
+                    <div class="section-header">📈 Login Activity — Last 7 Days</div>
+                    <div class="chart-container">
+                        <canvas id="activityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Logs Table -->
+        <div class="section-card">
+            <div class="section-header">📋 Recent Login Activity</div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Risk Level</th>
+                        <th>Status</th>
+                        <th>Location</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log[0] }}</td>
+                    <td>
+                        {% if log[1] == "Low" %}
+                            <span class="badge-low">✅ Low</span>
+                        {% elif log[1] == "Medium" %}
+                            <span class="badge-medium">⚠️ Medium</span>
+                        {% else %}
+                            <span class="badge-high">🔴 High</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log[2] }}</td>
+                    <td>🌍 {{ log[4] if log[4] else 'Unknown' }}</td>
+                    <td style="color: #5b7ab5;">{{ log[3] }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Blocked IPs (Admin Only) -->
+        {% if role == "admin" and blocked_ips %}
+        <div class="section-card">
+            <div class="section-header" style="color: #f87171;">🚫 Blocked IPs</div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Failed Attempts</th>
+                        <th>Blocked Until</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for ip in blocked_ips %}
+                <tr>
+                    <td>{{ ip[0] }}</td>
+                    <td><span class="badge-medium">{{ ip[1] }}</span></td>
+                    <td><span class="badge-high">{{ ip[2] }}</span></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+    </div>
+
+<!-- Charts -->
+<script>
+    // Donut Chart
+    new Chart(document.getElementById('riskChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+            datasets: [{
+                data: [{{ low_count }}, {{ medium_count }}, {{ high_count }}],
+                backgroundColor: ['#1a7a45', '#b8860b', '#8b1a1a'],
+                borderColor: ['#4caf7d', '#ffc107', '#f87171'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#7a9cc0', padding: 16, font: { size: 12 } }
+                }
+            }
+        }
+    });
+
+    // Line Chart
+    new Chart(document.getElementById('activityChart'), {
+        type: 'line',
+        data: {
+            labels: {{ chart_labels | tojson }},
+            datasets: [{
+                label: 'Login Attempts',
+                data: {{ daily_counts | tojson }},
+                borderColor: '#3d7aed',
+                backgroundColor: 'rgba(61, 122, 237, 0.08)',
+                borderWidth: 2,
+                pointBackgroundColor: '#3d7aed',
+                pointBorderColor: '#6fa3f7',
+                pointRadius: 5,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#7a9cc0' } }
+            },
+            scales: {
+                x: { ticks: { color: '#5b7ab5' }, grid: { color: '#1a2540' } },
+                y: {
+                    ticks: { color: '#5b7ab5', stepSize: 1 },
+                    grid: { color: '#1a2540' },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
