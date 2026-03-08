@@ -3,288 +3,14 @@
 <head>
     <title>Admin Panel — Zero Trust</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --bg: #0e0f1a;
-            --sidebar: #13142a;
-            --card: #181930;
-            --accent: #6c63ff;
-            --accent2: #a78bfa;
-            --accent3: #38bdf8;
-            --danger: #f43f5e;
-            --warning: #fb923c;
-            --success: #34d399;
-            --text: #e2e8f0;
-            --muted: #64748b;
-            --border: rgba(108,99,255,0.15);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'DM Sans', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* ---- SIDEBAR ---- */
-        .sidebar {
-            width: 72px;
-            background: var(--sidebar);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 24px 0;
-            position: fixed;
-            height: 100vh;
-            z-index: 100;
-            gap: 8px;
-            box-shadow: 4px 0 20px rgba(0,0,0,0.3);
-        }
-
-        .sidebar-logo {
-            font-size: 22px;
-            margin-bottom: 24px;
-            width: 44px; height: 44px;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 15px rgba(108,99,255,0.4);
-        }
-
-        .nav-item {
-            width: 44px; height: 44px;
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            /* ✅ Fix 3: Bigger icons */
-            font-size: 22px;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: var(--muted);
-            text-decoration: none;
-            position: relative;
-        }
-
-        .nav-item:hover { background: rgba(108,99,255,0.2); color: var(--accent2); }
-        .nav-item.active { background: rgba(108,99,255,0.25); color: var(--accent2); }
-
-        .nav-item::after {
-            content: attr(title);
-            position: absolute;
-            left: 56px;
-            background: var(--card);
-            color: var(--text);
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-            border: 1px solid var(--border);
-        }
-
-        .nav-item:hover::after { opacity: 1; }
-        .sidebar-bottom { margin-top: auto; }
-
-        /* ---- MAIN ---- */
-        .main { margin-left: 72px; flex: 1; padding: 32px; }
-
-        .section { display: none; }
-        .section.active { display: block; }
-
-        /* ---- TOPBAR ---- */
-        .topbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 32px;
-        }
-
-        .topbar h1 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 24px;
-            font-weight: 800;
-            color: #fff;
-            letter-spacing: -0.5px;
-        }
-
-        .topbar p { color: var(--muted); font-size: 13px; margin-top: 2px; }
-        .topbar-right { display: flex; align-items: center; gap: 12px; }
-
-        .user-pill {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 40px;
-            padding: 6px 16px 6px 8px;
-            font-size: 13px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .user-avatar {
-            width: 28px; height: 28px;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: 700; color: white;
-        }
-
-        .btn-logout {
-            background: rgba(244,63,94,0.15);
-            color: var(--danger);
-            border: 1px solid rgba(244,63,94,0.3);
-            border-radius: 10px;
-            padding: 8px 18px;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-            font-family: 'DM Sans', sans-serif;
-            transition: all 0.2s;
-        }
-
-        .btn-logout:hover { background: rgba(244,63,94,0.25); color: var(--danger); }
-
-        /* ---- STAT CARDS ---- */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-
-        .stat-card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 22px;
-            position: relative;
-            overflow: hidden;
-            /* ✅ Fix 1: Card shadow */
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-            /* ✅ Fix 2: Hover animation */
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.4);
-        }
-
-        .stat-icon { font-size: 20px; margin-bottom: 14px; width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-        .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
-        .stat-value { font-family: 'Space Grotesk', sans-serif; font-size: 48px; font-weight: 800; line-height: 1; letter-spacing: -2px; }
-
-        .s-blue .stat-icon { background: rgba(108,99,255,0.15); }
-        .s-blue .stat-value { color: var(--accent2); }
-        .s-orange .stat-icon { background: rgba(251,146,60,0.15); }
-        .s-orange .stat-value { color: var(--warning); }
-        .s-red .stat-icon { background: rgba(244,63,94,0.15); }
-        .s-red .stat-value { color: var(--danger); }
-        .s-cyan .stat-icon { background: rgba(56,189,248,0.15); }
-        .s-cyan .stat-value { color: var(--accent3); }
-
-        /* ---- CHARTS ROW ---- */
-        .charts-grid {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-
-        /* ✅ Fix 1+2: Card shadow + hover on all cards */
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            overflow: hidden;
-            margin-bottom: 24px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.4);
-        }
-
-        .card-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .card-title {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 14px;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        .card-body { padding: 20px; }
-        .chart-wrap { position: relative; height: 200px; }
-
-        /* ---- ALERTS ---- */
-        .alert-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 14px;
-            background: rgba(244,63,94,0.07);
-            border: 1px solid rgba(244,63,94,0.2);
-            border-radius: 10px;
-            margin-bottom: 8px;
-            font-size: 13px;
-            transition: background 0.2s;
-        }
-
-        .alert-row:hover { background: rgba(244,63,94,0.12); }
-        .alert-row:last-child { margin-bottom: 0; }
-        .alert-user { color: var(--danger); font-weight: 600; }
-        .alert-time { color: var(--muted); font-size: 11px; }
-
-        /* ---- TABLE ---- */
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        thead th { padding: 12px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); border-bottom: 1px solid var(--border); font-weight: 500; }
-        tbody td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
-        tbody tr:last-child td { border-bottom: none; }
-
-        /* ✅ Fix 5: Table row hover */
-        tbody tr:hover { background: #1c1f3a; }
-
-        /* ---- BADGES ---- */
-        .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-        .badge-success { background: rgba(52,211,153,0.12); color: var(--success); border: 1px solid rgba(52,211,153,0.25); }
-        .badge-warning { background: rgba(251,146,60,0.12); color: var(--warning); border: 1px solid rgba(251,146,60,0.25); }
-        .badge-danger { background: rgba(244,63,94,0.12); color: var(--danger); border: 1px solid rgba(244,63,94,0.25); }
-        .badge-accent { background: rgba(108,99,255,0.15); color: var(--accent2); border: 1px solid rgba(108,99,255,0.25); }
-        .badge-muted { background: rgba(100,116,139,0.15); color: var(--muted); border: 1px solid rgba(100,116,139,0.2); }
-
-        .btn-action { padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; border: 1px solid; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
-        .btn-ban { background: rgba(244,63,94,0.1); color: var(--danger); border-color: rgba(244,63,94,0.3); }
-        .btn-ban:hover { background: rgba(244,63,94,0.25); color: var(--danger); }
-        .btn-unban { background: rgba(52,211,153,0.1); color: var(--success); border-color: rgba(52,211,153,0.3); }
-        .btn-unban:hover { background: rgba(52,211,153,0.25); color: var(--success); }
-        .btn-unblock { background: rgba(56,189,248,0.1); color: var(--accent3); border-color: rgba(56,189,248,0.3); }
-        .btn-unblock:hover { background: rgba(56,189,248,0.25); color: var(--accent3); }
-
-        .device-tag { background: rgba(108,99,255,0.1); color: var(--accent2); border-radius: 6px; padding: 2px 8px; font-size: 11px; }
-
-        .section-title { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 20px; }
-
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg); }
-        ::-webkit-scrollbar-thumb { background: #1e2040; border-radius: 3px; }
+        body { display: flex; }
     </style>
 </head>
 <body>
 
-<!-- Sidebar -->
 <div class="sidebar">
     <div class="sidebar-logo">🛡️</div>
     <a class="nav-item active" title="Dashboard" onclick="showSection('dashboard', this)">📊</a>
@@ -297,7 +23,6 @@
     </div>
 </div>
 
-<!-- Main -->
 <div class="main">
 
     <div class="topbar">
@@ -317,26 +42,10 @@
     <!-- DASHBOARD -->
     <div id="sec-dashboard" class="section active">
         <div class="stats-grid">
-            <div class="stat-card s-blue">
-                <div class="stat-icon">📊</div>
-                <div class="stat-label">Total Logins</div>
-                <div class="stat-value">{{ total_logins }}</div>
-            </div>
-            <div class="stat-card s-orange">
-                <div class="stat-icon">⚠️</div>
-                <div class="stat-label">Failed Attempts</div>
-                <div class="stat-value">{{ total_failures }}</div>
-            </div>
-            <div class="stat-card s-red">
-                <div class="stat-icon">🚫</div>
-                <div class="stat-label">IP Blocks</div>
-                <div class="stat-value">{{ active_ip_blocks }}</div>
-            </div>
-            <div class="stat-card s-cyan">
-                <div class="stat-icon">🔨</div>
-                <div class="stat-label">Banned Users</div>
-                <div class="stat-value">{{ total_banned }}</div>
-            </div>
+            <div class="stat-card s-blue"><div class="stat-icon">📊</div><div class="stat-label">Total Logins</div><div class="stat-value">{{ total_logins }}</div></div>
+            <div class="stat-card s-orange"><div class="stat-icon">⚠️</div><div class="stat-label">Failed Attempts</div><div class="stat-value">{{ total_failures }}</div></div>
+            <div class="stat-card s-red"><div class="stat-icon">🚫</div><div class="stat-label">IP Blocks</div><div class="stat-value">{{ active_ip_blocks }}</div></div>
+            <div class="stat-card s-cyan"><div class="stat-icon">🔨</div><div class="stat-label">Banned Users</div><div class="stat-value">{{ total_banned }}</div></div>
         </div>
 
         <div class="charts-grid">
@@ -356,9 +65,7 @@
         <div class="section-title">👥 User Management</div>
         <div class="card" style="margin-bottom:0">
             <table>
-                <thead>
-                    <tr><th>ID</th><th>Username</th><th>Role</th><th>Failed</th><th>Lock Until</th><th>Status</th><th>Action</th></tr>
-                </thead>
+                <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Failed</th><th>Lock Until</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody>
                 {% for u in all_users %}
                 <tr>
@@ -389,13 +96,7 @@
             <div class="card-body">
                 {% for alert in alerts %}
                 <div class="alert-row">
-                    <div>
-                        <span class="alert-user">{{ alert[0] }}</span>
-                        <span style="color:var(--muted);margin:0 6px">—</span>
-                        <span>{{ alert[1] }}</span>
-                        <span style="color:var(--muted);margin:0 6px">from</span>
-                        <span>🌍 {{ alert[3] if alert[3] else 'Unknown' }}</span>
-                    </div>
+                    <div><span class="alert-user">{{ alert[0] }}</span><span style="color:var(--muted);margin:0 6px">—</span><span>{{ alert[1] }}</span><span style="color:var(--muted);margin:0 6px">from</span><span>🌍 {{ alert[3] if alert[3] else 'Unknown' }}</span></div>
                     <div class="alert-time">{{ alert[2] }}</div>
                 </div>
                 {% endfor %}
@@ -435,9 +136,7 @@
         <div class="section-title">📋 Recent Login Activity</div>
         <div class="card" style="margin-bottom:0">
             <table>
-                <thead>
-                    <tr><th>Username</th><th>Risk</th><th>Status</th><th>Device</th><th>Location</th><th>Time</th></tr>
-                </thead>
+                <thead><tr><th>Username</th><th>Risk</th><th>Status</th><th>⌨️ Typing</th><th>Device</th><th>Location</th><th>Time</th></tr></thead>
                 <tbody>
                 {% for log in logs %}
                 <tr>
@@ -448,6 +147,16 @@
                         {% else %}<span class="badge badge-danger">High</span>{% endif %}
                     </td>
                     <td>{{ log[2] }}</td>
+                    <td>
+                        {% set typing = log[6] if log[6] else 'No Data' %}
+                        {% if 'Normal' in typing or 'Paste' in typing %}
+                            <span class="typing-normal">✅ {{ typing }}</span>
+                        {% elif 'No Data' in typing %}
+                            <span class="typing-nodata">— {{ typing }}</span>
+                        {% else %}
+                            <span class="typing-suspicious">⚠️ {{ typing }}</span>
+                        {% endif %}
+                    </td>
                     <td><span class="device-tag">{{ log[5] if log[5] else 'Unknown' }}</span></td>
                     <td>🌍 {{ log[4] if log[4] else 'Unknown' }}</td>
                     <td style="color:var(--muted);font-size:12px">{{ log[3] }}</td>
@@ -460,15 +169,8 @@
 
 </div>
 
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
 <script>
-    function showSection(name, el) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        document.getElementById('sec-' + name).classList.add('active');
-        el.classList.add('active');
-    }
-
-    // ✅ Fix 4: Chart glow effect
     new Chart(document.getElementById('riskChart'), {
         type: 'doughnut',
         data: {
@@ -487,7 +189,6 @@
         }
     });
 
-    // ✅ Fix 4: Glow on line chart
     const ctx = document.getElementById('activityChart').getContext('2d');
     const gradient = ctx.createLinearGradient(0, 0, 0, 200);
     gradient.addColorStop(0, 'rgba(124,108,255,0.3)');
@@ -513,9 +214,7 @@
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { labels: { color: '#94a3b8', font: { family: 'DM Sans' } } }
-            },
+            plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'DM Sans' } } } },
             scales: {
                 x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' } },
                 y: { ticks: { color: '#64748b', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
