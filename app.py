@@ -22,10 +22,10 @@ app.secret_key = os.getenv("SECRET_KEY")
 from datetime import timedelta
 app.permanent_session_lifetime = timedelta(minutes=30)
 
-DATABASE        = "database.db"
+DATABASE         = "database.db"
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-SENDER_EMAIL    = os.getenv("SENDER_EMAIL")
-API_KEY         = os.getenv("API_KEY")
+SENDER_EMAIL     = os.getenv("SENDER_EMAIL")
+API_KEY          = os.getenv("API_KEY")
 
 # ================================================================
 #  DB CONNECTION
@@ -186,15 +186,20 @@ def init_db():
     cursor.execute("""CREATE TABLE IF NOT EXISTS active_sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE,
         session_id TEXT, timestamp TEXT)""")
-    conn.commit(); conn.close()
 
-# Default admin create karo agar exist nahi karta
-cursor.execute("SELECT * FROM users WHERE username='admin'")
-if not cursor.fetchone():
-    cursor.execute("INSERT INTO users (username, password, email, role) VALUES (?,?,?,?)",
-        ('admin', generate_password_hash('admin123'), 'admin@zerotrust.com', 'admin'))
+    # ✅ Default admin — init_db ke andar
+    cursor.execute("SELECT * FROM users WHERE username='admin'")
+    if not cursor.fetchone():
+        cursor.execute("INSERT INTO users (username, password, email, role) VALUES (?,?,?,?)",
+            ('admin', generate_password_hash('admin123'), 'admin@zerotrust.com', 'admin'))
+        print("✅ Default admin created!")
+
     conn.commit()
-    print("✅ Default admin created!")
+    conn.close()
+
+# ✅ Gunicorn ke liye — if __name__ se BAHAR
+init_db()
+
 # ================================================================
 #  WEB ROUTES
 # ================================================================
@@ -436,7 +441,6 @@ def logout():
 #  🔌 REST API ROUTES
 # ================================================================
 
-# ---- API: Health Check ----
 @app.route('/api/health', methods=['GET'])
 def api_health():
     return jsonify({
@@ -454,20 +458,15 @@ def api_health():
         ]
     })
 
-# ---- API: Login Risk Check ----
 @app.route('/api/login', methods=['POST'])
 @require_api_key
 def api_login():
     data = request.get_json()
     if not data or 'username' not in data or 'password' not in data:
         return jsonify({"success": False, "error": "username and password required"}), 400
-
     username = data['username']; password = data['password']
     ip_address = request.remote_addr
-
     conn = get_db(); cursor = conn.cursor()
-
-    # IP Block check
     cursor.execute("SELECT failed_attempts, lock_until FROM ip_blocks WHERE ip_address=?", (ip_address,))
     ip_record = cursor.fetchone()
     if ip_record and ip_record['lock_until']:
@@ -475,54 +474,37 @@ def api_login():
         if datetime.datetime.now() < lt:
             conn.close()
             return jsonify({"success": False, "error": "IP blocked", "blocked_until": ip_record['lock_until']}), 403
-
-    # User check
     cursor.execute("SELECT * FROM users WHERE username=?", (username,))
     user = cursor.fetchone()
-    if not user:
-        conn.close()
-        return jsonify({"success": False, "error": "User not found"}), 404
-
-    if user['is_banned']:
-        conn.close()
-        return jsonify({"success": False, "error": "Account banned"}), 403
-
+    if not user: conn.close(); return jsonify({"success": False, "error": "User not found"}), 404
+    if user['is_banned']: conn.close(); return jsonify({"success": False, "error": "Account banned"}), 403
     if user['lock_until']:
         lt = datetime.datetime.strptime(user['lock_until'], "%Y-%m-%d %H:%M:%S")
         if datetime.datetime.now() < lt:
             conn.close()
             return jsonify({"success": False, "error": "Account locked", "locked_until": user['lock_until']}), 403
-
-    # Wrong password
     if not check_password_hash(user['password'], password):
         failed = user['failed_attempts'] + 1
         cursor.execute("UPDATE users SET failed_attempts=? WHERE username=?", (failed, username))
         conn.commit(); conn.close()
         return jsonify({"success": False, "error": "Wrong password", "attempts_remaining": max(0, 5-failed)}), 401
-
-    # Risk scoring
     current_hour    = datetime.datetime.now().hour
     is_time_anomaly = check_time_anomaly(username, current_hour)
     typing_suspicious, typing_label = analyze_typing('', '', '0', current_hour, user['failed_attempts'], is_time_anomaly)
     risk, reasons = calculate_risk(username, user['failed_attempts'], typing_suspicious, typing_label, current_hour, is_time_anomaly)
-
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("INSERT INTO login_history (username, hour, timestamp) VALUES (?,?,?)", (username, current_hour, ts))
     cursor.execute("INSERT INTO login_logs (username, risk_level, status, timestamp, location, device_info, typing_flag) VALUES (?,?,?,?,?,?,?)",
                    (username, risk, f"API-{risk}", ts, "API Call", "API Client", typing_label))
     cursor.execute("UPDATE users SET failed_attempts=0 WHERE username=?", (username,))
     conn.commit(); conn.close()
-
     return jsonify({
-        "success": True,
-        "username": username,
-        "risk_level": risk,
+        "success": True, "username": username, "risk_level": risk,
         "risk_reasons": reasons,
         "action": "ALLOW" if risk == "Low" else "REQUIRE_OTP" if risk == "Medium" else "BLOCK",
         "timestamp": ts
     })
 
-# ---- API: Get Logs ----
 @app.route('/api/logs', methods=['GET'])
 @require_api_key
 def api_logs():
@@ -533,7 +515,6 @@ def api_logs():
     conn.close()
     return jsonify({"success": True, "count": len(logs), "logs": logs})
 
-# ---- API: Get Users ----
 @app.route('/api/users', methods=['GET'])
 @require_api_key
 def api_users():
@@ -543,7 +524,6 @@ def api_users():
     conn.close()
     return jsonify({"success": True, "count": len(users), "users": users})
 
-# ---- API: Stats ----
 @app.route('/api/stats', methods=['GET'])
 @require_api_key
 def api_stats():
@@ -559,15 +539,12 @@ def api_stats():
     return jsonify({
         "success": True,
         "stats": {
-            "total_logins": total,
-            "failed_attempts": failures,
-            "blocked_ips": blocked_ips,
-            "banned_users": banned,
+            "total_logins": total, "failed_attempts": failures,
+            "blocked_ips": blocked_ips, "banned_users": banned,
             "risk_distribution": {"Low": low, "Medium": medium, "High": high}
         }
     })
 
-# ---- API: Ban User ----
 @app.route('/api/ban', methods=['POST'])
 @require_api_key
 def api_ban():
@@ -580,7 +557,6 @@ def api_ban():
     conn.commit(); conn.close()
     return jsonify({"success": True, "message": f"User '{data['username']}' banned!"})
 
-# ---- API: Unban User ----
 @app.route('/api/unban', methods=['POST'])
 @require_api_key
 def api_unban():
@@ -593,7 +569,6 @@ def api_unban():
     conn.commit(); conn.close()
     return jsonify({"success": True, "message": f"User '{data['username']}' unbanned!"})
 
-# ---- API: Unblock IP ----
 @app.route('/api/unblock-ip', methods=['POST'])
 @require_api_key
 def api_unblock_ip():
@@ -610,5 +585,4 @@ def api_unblock_ip():
 #  RUN
 # ================================================================
 if __name__ == "__main__":
-    init_db()
     app.run(debug=True)
