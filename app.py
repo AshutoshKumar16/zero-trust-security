@@ -188,7 +188,13 @@ def init_db():
         session_id TEXT, timestamp TEXT)""")
     conn.commit(); conn.close()
 
-
+# Default admin create karo agar exist nahi karta
+cursor.execute("SELECT * FROM users WHERE username='admin'")
+if not cursor.fetchone():
+    cursor.execute("INSERT INTO users (username, password, email, role) VALUES (?,?,?,?)",
+        ('admin', generate_password_hash('admin123'), 'admin@zerotrust.com', 'admin'))
+    conn.commit()
+    print("✅ Default admin created!")
 # ================================================================
 #  WEB ROUTES
 # ================================================================
